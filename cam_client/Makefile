@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall
-LDFLAGS = -L.
+CFLAGS = -Wall `pkg-config --cflags aravis-0.8`
+LDFLAGS = -Wall `pkg-config --libs aravis-0.8`
 
 all: sbl_cam_client
 

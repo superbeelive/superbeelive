@@ -1,0 +1,11 @@
+*.d
+*.o
+*.P
+*.map
+*.axf
+*.bin
+*.jlink
+*.emSession
+*.elf
+*.ind
+sbl_cam_client
