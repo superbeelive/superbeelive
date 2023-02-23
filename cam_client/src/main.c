@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <arv.h>
 
+static void aravis_callback( void*, ArvStreamCallbackType, ArvBuffer* ) ;
+
 int main( int argc, char** argv, char** envv ) {
 
 	int rows = 1080;	// image height
@@ -158,7 +160,7 @@ int main( int argc, char** argv, char** envv ) {
 
 	// creation du stream
 	
-	stream = arv_camera_create_stream( camera, NULL, NULL, &error );
+	stream = arv_camera_create_stream( camera, aravis_callback, NULL, &error );
 	if ( error != NULL ) {
 		fprintf(stderr,"ERROR: Could not create stream\n") ;
 		fprintf(stderr,"%s\n", error->message );
@@ -189,10 +191,30 @@ int main( int argc, char** argv, char** envv ) {
 		arv_stream_push_buffer( stream, buff );
 	}
 
-	// Setup callback
+	// Record loop
 	
-
-
+	arv_camera_start_acquisition(camera, &error);
+	if ( error == NULL ) {
+		while(1) {
+			ArvBuffer *buffer ;
+			time_t t = time(NULL) ;
+			struct tm tm = *localtime(&t);
+			char filename[100] ;
+			sprintf(filename, "%d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+			FILE* fichier=fopen( filename, "wb" );
+			for (i=0; i<1800; i++) {
+				buffer = arv_stream_pop_buffer (stream);
+				if ( ARV_IS_BUFFER( buffer)){
+					fwrite( arv_buffer_get_data(buffer,NULL)
+							, payload, 1, fichier) ;
+					arv_stream_push_buffer (stream, buffer);
+				}
+			}
+			fclose(fichier) ;
+		}
+	}
+	arv_camera_stop_acquisition( camera, &error ) ;
+	
 	// Liberation memoire
 
 	g_clear_object( &stream ) ;
@@ -201,3 +223,33 @@ int main( int argc, char** argv, char** envv ) {
 	exit(EXIT_SUCCESS);
 
 }
+
+
+static void
+aravis_callback (void *user_data, ArvStreamCallbackType type, ArvBuffer *buffer)
+{
+	/* This code is called from the stream receiving thread, which means all the time spent there is less time
+	 * available for the reception of incoming packets */
+
+	switch (type) {
+		case ARV_STREAM_CALLBACK_TYPE_INIT:
+			/* Stream thread started.
+			 *
+			 * Here you may want to change the thread priority arv_make_thread_realtime() or
+			 * arv_make_thread_high_priority() */
+			break;
+		case ARV_STREAM_CALLBACK_TYPE_START_BUFFER:
+			/* The first packet of a new frame was received */
+			break;
+		case ARV_STREAM_CALLBACK_TYPE_BUFFER_DONE:
+			/* The buffer is received, successfully or not.
+			 *
+			 * You could here signal the new buffer to another thread than the main one, and pull/push the
+			 * buffer from there. */
+			break;
+		case ARV_STREAM_CALLBACK_TYPE_EXIT:
+			/* Stream thread ended */
+			break;
+	}
+}
+
