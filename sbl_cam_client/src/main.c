@@ -1,17 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/time.h>
 #include <arv.h>
 
-static void aravis_callback( void*, ArvStreamCallbackType, ArvBuffer* ) ;
+#include "sblv_file.h"
+
+#define DEFAULT_DATA_PATH	"/home/superbeelive/workspace"
+#define RAW_VIDEO_PATH		"/raw_data/cam_videos"
 
 int main( int argc, char** argv, char** envv ) {
 
-	int rows = 1080;	// image height
+	int rows = 1200;	// image height
 	int cols = 1920;	// image width
 	double fps = 30 ;	// frames per sec
-	char output[200] = "/home/superbeelive/records/video" ;	// output path
-	char camera_name[200] = "" ;							// camera name
+	char *output_prefix = NULL; // output prefix
+	char *output = NULL ;      	// output path
+	char *camera_name = NULL ;  // camera name
 	int	buffer_size = 300 ;	// Buffer size ( in images )
 
 	int i ;
@@ -37,7 +43,12 @@ int main( int argc, char** argv, char** envv ) {
 				fps=atof(optarg);
 				break;
 			case 'o':
-				strncpy( output, optarg, sizeof(output));
+				if ( output_prefix == NULL ) {
+					output_prefix = malloc( strlen(optarg)+1 ) ;
+					strcpy( output_prefix, optarg );
+				} else {
+					fprintf(stderr,"WARNING: only the first -o option is considered\n");
+				}
 				break;
 			case 'h':
 			default:
@@ -47,9 +58,19 @@ int main( int argc, char** argv, char** envv ) {
 	}
 
 	if ( optind < argc ) {
-		strncpy( camera_name, argv[optind], sizeof(camera_name) );
+		camera_name = malloc(strlen(argv[optind])+1);
+		strcpy( camera_name, argv[optind] );
 	}
 
+	if ( output_prefix == NULL ) {
+		output_prefix = malloc( strlen( DEFAULT_DATA_PATH )+1 ) ;
+		sprintf( output_prefix, DEFAULT_DATA_PATH ) ;
+	}
+	
+	// Construction de la chaine output contenant le chemin complet
+
+	output = malloc(strlen(output_prefix)+strlen(RAW_VIDEO_PATH));
+	sprintf( output,"%s%s", output_prefix, RAW_VIDEO_PATH ) ;
 
 	// Affichages des parametres
 	
@@ -58,9 +79,83 @@ int main( int argc, char** argv, char** envv ) {
 	printf("Framerate: %.2lf\n", fps ) ;
 	printf("Output directory: %s\n", output ) ;
 
+	// Verification de l'output path et benchmarking
+	
+	printf("Testing write access ...\n") ;
+
+	char* test_filename ;
+	unsigned char* test_data ;
+	FILE* test_file ;
+	size_t test_images = 300 ;
+	size_t test_payload = cols*rows ;
+	size_t written = 0 ;
+	struct timeval begin, end ;
+
+	test_filename = malloc( strlen(output) + 50 ) ;
+	if ( test_filename == NULL ) {
+		fprintf(stderr, "ERROR: Could not allocate test filename\n");
+		return EXIT_FAILURE ;
+	}
+	sprintf( test_filename, "%s/%s", output, "file.test" ) ;
+	
+	test_data = malloc( test_payload ) ;
+	if ( test_data == NULL ) {
+		fprintf(stderr,"ERROR: Could not allocate test data\n") ;
+		return EXIT_FAILURE ;
+	}
+	for (i=0; i<test_payload; i++ )
+		test_data[i] = (unsigned char) ( rand()%255 ) ;
+
+	gettimeofday(&begin,0) ;
+	test_file = fopen( test_filename, "wb" ) ;
+	if (test_file == NULL ) {
+		fprintf(stderr, "ERROR: Could not open file for writing\n" ) ;
+		fprintf(stderr, "       filename: %s\n", test_filename ) ;
+		return EXIT_FAILURE ;
+	}
+
+	for ( i=0; i<test_images; i++ )
+		written += fwrite( test_data, test_payload, 1, test_file) ;
+
+	fflush(test_file) ;
+	fclose(test_file) ;
+
+	gettimeofday(&end,0) ;
+
+	long seconds = end.tv_sec - begin.tv_sec;
+    long microseconds = end.tv_usec - begin.tv_usec;
+    double elapsed = seconds + microseconds*1e-6;
+
+	if ( written != test_images ) {
+		fprintf(stderr, "ERROR: Mismatch\n") ;
+		fprintf(stderr, "\ttest:    %ld Frames\n", test_images ) ;
+		fprintf(stderr, "\tWritten: %ld Frames\n", written) ;
+		fprintf(stderr, "\tPayload per frame: %ld Bytes\n", test_payload ) ;
+		return EXIT_FAILURE ;
+	}
+
+	printf("\tSuccess.\n");
+	printf("\tElapsed: %.3f seconds.\n", elapsed);
+
+	if ( elapsed > ((float) test_images) / (float) fps ) {
+		fprintf(stderr,"ERROR: Performance is too low \n");
+		return EXIT_FAILURE;
+	}
+
+	if ( remove(test_filename) ) {
+		printf("ERROR: Could not delete test file\n") ;
+		return EXIT_FAILURE;
+	} else {
+		printf("\tTest file deleted successfully.\n");
+		printf("\tPerformance: %.3f fps\n", test_images / elapsed );
+	}
+
+	free(test_filename) ;
+	free(test_data) ;
+
 	// Connexion à la camera
 	
-	if ( camera_name[0] == '\0' ) {
+	if ( camera_name == NULL ) {
 		printf("\nNo camera given.\n");
 		printf("Available cams: \n");
 		ArvInterface* interface ;
@@ -160,7 +255,7 @@ int main( int argc, char** argv, char** envv ) {
 
 	// creation du stream
 	
-	stream = arv_camera_create_stream( camera, aravis_callback, NULL, &error );
+	stream = arv_camera_create_stream( camera, NULL, NULL, &error );
 	if ( error != NULL ) {
 		fprintf(stderr,"ERROR: Could not create stream\n") ;
 		fprintf(stderr,"%s\n", error->message );
@@ -220,36 +315,11 @@ int main( int argc, char** argv, char** envv ) {
 	g_clear_object( &stream ) ;
 	g_clear_object( &camera ) ;
 
+	free(output) ;
+	free(output_prefix) ;
+	free(camera_name) ;
+
 	exit(EXIT_SUCCESS);
 
-}
-
-
-static void
-aravis_callback (void *user_data, ArvStreamCallbackType type, ArvBuffer *buffer)
-{
-	/* This code is called from the stream receiving thread, which means all the time spent there is less time
-	 * available for the reception of incoming packets */
-
-	switch (type) {
-		case ARV_STREAM_CALLBACK_TYPE_INIT:
-			/* Stream thread started.
-			 *
-			 * Here you may want to change the thread priority arv_make_thread_realtime() or
-			 * arv_make_thread_high_priority() */
-			break;
-		case ARV_STREAM_CALLBACK_TYPE_START_BUFFER:
-			/* The first packet of a new frame was received */
-			break;
-		case ARV_STREAM_CALLBACK_TYPE_BUFFER_DONE:
-			/* The buffer is received, successfully or not.
-			 *
-			 * You could here signal the new buffer to another thread than the main one, and pull/push the
-			 * buffer from there. */
-			break;
-		case ARV_STREAM_CALLBACK_TYPE_EXIT:
-			/* Stream thread ended */
-			break;
-	}
 }
 
