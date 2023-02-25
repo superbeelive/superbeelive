@@ -5,10 +5,9 @@
 #include <sys/time.h>
 #include <arv.h>
 
+#include "sbl.h"
 #include "sblv_file.h"
 
-#define DEFAULT_DATA_PATH	"/home/superbeelive/workspace"
-#define RAW_VIDEO_PATH		"/raw_data/cam_videos"
 
 int main( int argc, char** argv, char** envv ) {
 
@@ -19,6 +18,11 @@ int main( int argc, char** argv, char** envv ) {
 	char *output = NULL ;      	// output path
 	char *camera_name = NULL ;  // camera name
 	int	buffer_size = 300 ;	// Buffer size ( in images )
+	unsigned int id_module = 0 ;
+	int module_flag = 0 ;
+	unsigned int id_cam = 0 ;
+	int cam_flag = 0 ;
+	int duration = 10 ;				// Duration in minutes
 
 	int i ;
 	int opt ;
@@ -31,12 +35,15 @@ int main( int argc, char** argv, char** envv ) {
 
 	// Parsing des options
 	
-	while((opt = getopt(argc,argv, "c:r:f:o:h")) != -1) {
+	while((opt = getopt(argc,argv, "d:w:h:f:o:m:c:")) != -1) {
 		switch (opt) {
-			case 'c':
+			case 'd':
+				duration=atoi(optarg);
+				break;
+			case 'w':
 				cols=atoi(optarg);
 				break;
-			case 'r':
+			case 'h':
 				rows=atoi(optarg);
 				break;
 			case 'f':
@@ -50,9 +57,16 @@ int main( int argc, char** argv, char** envv ) {
 					fprintf(stderr,"WARNING: only the first -o option is considered\n");
 				}
 				break;
-			case 'h':
-			default:
-				fprintf(stderr,"Usage: %s [-c cols] [-r rows] [-f framerate] [-o output_directory] camera\n", argv[0] ) ;
+			case 'm':
+				id_module=atoi(optarg);
+				module_flag = 1 ;
+				break;
+			case 'c':
+				id_cam=atoi(optarg);
+				cam_flag = 1 ;
+				break;
+			default: /* '?' */
+				fprintf(stderr,"Usage: %s [-d duration] [-w cols] [-h rows] [-f framerate] [-o output_directory] -m module_id -c cam_id camera\n", argv[0] ) ;
 				exit(EXIT_FAILURE) ;
 		}
 	}
@@ -67,10 +81,20 @@ int main( int argc, char** argv, char** envv ) {
 		sprintf( output_prefix, DEFAULT_DATA_PATH ) ;
 	}
 	
+	if ( camera_name == NULL ) {
+		fprintf(stderr, "\nNo camera given.\n");
+		exit(EXIT_FAILURE) ;
+	}
+
+	if (!(module_flag && cam_flag)) {
+		fprintf(stderr,"\nOptions -m and -c are mandatory\n");
+		exit(EXIT_FAILURE) ;
+	}
+
 	// Construction de la chaine output contenant le chemin complet
 
-	output = malloc(strlen(output_prefix)+strlen(RAW_VIDEO_PATH));
-	sprintf( output,"%s%s", output_prefix, RAW_VIDEO_PATH ) ;
+	output = malloc(strlen(output_prefix)+strlen(SBL_VIDEO_PATH));
+	sprintf( output,"%s%s", output_prefix, SBL_VIDEO_PATH ) ;
 
 	// Affichages des parametres
 	
@@ -143,7 +167,7 @@ int main( int argc, char** argv, char** envv ) {
 	}
 
 	if ( remove(test_filename) ) {
-		printf("ERROR: Could not delete test file\n") ;
+		fprintf(stderr,"ERROR: Could not delete test file\n") ;
 		return EXIT_FAILURE;
 	} else {
 		printf("\tTest file deleted successfully.\n");
@@ -155,26 +179,6 @@ int main( int argc, char** argv, char** envv ) {
 
 	// Connexion à la camera
 	
-	if ( camera_name == NULL ) {
-		printf("\nNo camera given.\n");
-		printf("Available cams: \n");
-		ArvInterface* interface ;
-		interface = arv_gv_interface_get_instance() ;
-		arv_interface_update_device_list( interface ) ;
-		int nb = arv_interface_get_n_devices( interface ) ;
-		if ( nb == 0 )
-			printf("\t NO CAMERA DETECTED\n") ;
-		else {
-			for ( i=0; i <nb; i++ ) {
-				printf("\t - %s\n", arv_get_device_id(i) ) ;
-				printf("\t\t Model: %s\n", arv_get_device_model(i) ) ;
-				printf("\t\t Physical id: %s\n", arv_get_device_physical_id(i) ) ;
-				printf("\t\t IP: %s\n", arv_get_device_address(i) ) ;
-				printf("\t\t Serial: %s\n", arv_get_device_serial_nbr(i) ) ;
-			}
-		}
-		exit(EXIT_FAILURE) ;
-	}
 		
 	camera = arv_camera_new( camera_name, &error );
 	if ( error != NULL ) {
@@ -287,17 +291,45 @@ int main( int argc, char** argv, char** envv ) {
 	}
 
 	// Record loop
-	
+
+	ArvBuffer *buffer ;
+	char filename[100] ;
+	struct tm tm ;
+	FILE* fichier ;
+	sblv_header header ;
+	int nb_frames ;
+
+	nb_frames = duration*60*fps;
+
+	sprintf( header.cam_serial, arv_camera_get_device_serial_number(camera, NULL) ) ;
+	header.rows = rows ;
+	header.cols = cols ;
+	header.fps = fps ;
+	header.encoding = MONO8 ;
+	header.hive = ID_HIVE ;
+	header.module = id_module ;
+	header.cam = id_cam ;
+
+	printf("\nID Hive: %d\n", header.hive ) ;
+	printf("ID Module: %d\n", header.module ) ;
+	printf("ID Cam: %d\n", header.cam ) ;
+	printf("File duration: %d minutes\n", duration ) ;
+	printf("\nRecording...\n") ;
+
 	arv_camera_start_acquisition(camera, &error);
+	
 	if ( error == NULL ) {
 		while(1) {
-			ArvBuffer *buffer ;
-			time_t t = time(NULL) ;
-			struct tm tm = *localtime(&t);
-			char filename[100] ;
-			sprintf(filename, "%d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-			FILE* fichier=fopen( filename, "wb" );
-			for (i=0; i<1800; i++) {
+			header.timestamp = time(NULL) ;
+			tm = *localtime(&(header.timestamp));
+			sprintf(filename, "%s/M%02dC%02d_%d%02d%02d_%02d%02d%02d.sblv", 
+					output,
+					header.module, header.cam,
+					tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, 
+					tm.tm_hour, tm.tm_min, tm.tm_sec);
+			fichier=fopen( filename, "wb" );
+			// TODO
+			for (i=0; i<nb_frames; i++) {
 				buffer = arv_stream_pop_buffer (stream);
 				if ( ARV_IS_BUFFER( buffer)){
 					fwrite( arv_buffer_get_data(buffer,NULL)

@@ -6,8 +6,8 @@
 
 typedef enum {
 	MONO8,
-	RGB24,
-	YUV422
+	MONO16,
+	RGB24
 } encoding_t ;
 
 
@@ -18,9 +18,9 @@ typedef struct {
 	double fps;          // Frame per second
 	encoding_t encoding; // Pixel format
 	time_t timestamp;    // Start of capture
-	int hive;            // Hive serial
-	int module;          // Module
-	int cam;             // Camera
+	unsigned int hive;            // Hive ID
+	unsigned int module;          // Module ID
+	unsigned int cam;             // Camera ID
 } sblv_header;
 
 #endif

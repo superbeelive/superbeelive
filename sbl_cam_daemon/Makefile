@@ -3,9 +3,9 @@ CFLAGS = -Wall `pkg-config --cflags aravis-0.8` -I../libsbl/include
 LDFLAGS = -Wall `pkg-config --libs aravis-0.8`
 DEBUG = -g
 
-all: sbl_cam_client
+all: sbl_cam_daemon
 
-sbl_cam_client: main.o
+sbl_cam_daemon: main.o
 	gcc -o $@ ${LDFLAGS} $^
 
 %.o: src/%.c
@@ -13,6 +13,6 @@ sbl_cam_client: main.o
 
 clean:
 	rm -f *.o
-	rm -f sbl_cam_client
+	rm -f sbl_cam_daemon
 
 .PHONY: all clean
