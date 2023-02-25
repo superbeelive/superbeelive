@@ -8,4 +8,4 @@
 *.emSession
 *.elf
 *.ind
-sbl_cam_client
+sbl_cam_daemon
