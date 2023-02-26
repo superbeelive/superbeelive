@@ -6,7 +6,7 @@ DEBUG = -g
 all: sbl_cam_daemon
 
 sbl_cam_daemon: main.o
-	gcc -o $@ ${LDFLAGS} $^
+	gcc -o $@ $^ ${LDFLAGS}
 
 %.o: src/%.c
 	${CC} -c ${CFLAGS} ${DEBUG} $^
