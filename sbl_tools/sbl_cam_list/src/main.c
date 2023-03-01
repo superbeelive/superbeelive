@@ -1,5 +1,11 @@
+#include <stdio.h>
+#include <arv.h>
 
-		printf("Available cams: \n");
+int main( int argc, char** argv, char** envv ) {
+
+	int i ;
+
+    printf("Available cams: \n");
 		ArvInterface* interface ;
 		interface = arv_gv_interface_get_instance() ;
 		arv_interface_update_device_list( interface ) ;
@@ -15,3 +21,8 @@
 				printf("\t\t Serial: %s\n", arv_get_device_serial_nbr(i) ) ;
 			}
 		}
+
+	exit(EXIT_SUCCESS);
+
+}
+
