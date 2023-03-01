@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/time.h>
 #include <arv.h>
@@ -22,7 +23,7 @@ int main( int argc, char** argv, char** envv ) {
 	int module_flag = 0 ;
 	unsigned int id_cam = 0 ;
 	int cam_flag = 0 ;
-	int duration = 10 ;				// Duration in minutes
+	int duration = 1 ;				// Duration in minutes
 
 	int i ;
 	int opt ;
@@ -293,9 +294,9 @@ int main( int argc, char** argv, char** envv ) {
 	// Record loop
 
 	ArvBuffer *buffer ;
-	char filename[100] ;
+	char filename[100] = "test.sblv" ;
 	struct tm tm ;
-	FILE* fichier ;
+	int fichier ;
 	sblv_header header ;
 	int nb_frames ;
 
@@ -317,7 +318,7 @@ int main( int argc, char** argv, char** envv ) {
 	printf("\nRecording...\n") ;
 
 	arv_camera_start_acquisition(camera, &error);
-	
+
 	if ( error == NULL ) {
 		while(1) {
 			header.timestamp = time(NULL) ;
@@ -325,19 +326,25 @@ int main( int argc, char** argv, char** envv ) {
 			sprintf(filename, "%s/M%02dC%02d_%d%02d%02d_%02d%02d%02d.sblv", 
 					output,
 					header.module, header.cam,
-					tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, 
-					tm.tm_hour, tm.tm_min, tm.tm_sec);
-			fichier=fopen( filename, "wb" );
-			// TODO
+					tm.tm_year + 1900, 
+					tm.tm_mon + 1, 
+					tm.tm_mday, 
+					tm.tm_hour, 
+					tm.tm_min, 
+					tm.tm_sec);
+			fichier=open( filename, O_WRONLY | O_CREAT | O_TRUNC, "wb" );
+			filename[0]++ ;
 			for (i=0; i<nb_frames; i++) {
 				buffer = arv_stream_pop_buffer (stream);
 				if ( ARV_IS_BUFFER( buffer)){
-					fwrite( arv_buffer_get_data(buffer,NULL)
-							, payload, 1, fichier) ;
+					write( fichier,
+							arv_buffer_get_data(buffer,NULL)
+							, payload ) ;
 					arv_stream_push_buffer (stream, buffer);
 				}
 			}
-			fclose(fichier) ;
+			write( fichier, &header, sizeof(sblv_header) );
+			close(fichier) ;
 		}
 	}
 	arv_camera_stop_acquisition( camera, &error ) ;
