@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall `pkg-config --cflags aravis-0.8` -I../libsbl/include
+CFLAGS = -O2 -Wall `pkg-config --cflags aravis-0.8` -I../libsbl/include
 LDFLAGS = -Wall `pkg-config --libs aravis-0.8`
 DEBUG = -g
 
@@ -9,7 +9,7 @@ sbl_cam_daemon: main.o
 	gcc -o $@ $^ ${LDFLAGS}
 
 %.o: src/%.c
-	${CC} -c ${CFLAGS} ${DEBUG} $^
+	${CC} -c ${CFLAGS} $^
 
 clean:
 	rm -f *.o
