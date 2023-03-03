@@ -18,7 +18,7 @@ int main( int argc, char** argv, char** envv ) {
 	char *output_prefix = NULL; // output prefix
 	char *output = NULL ;      	// output path
 	char *camera_name = NULL ;  // camera name
-	int	buffer_size = 300 ;	// Buffer size ( in images )
+	int	buffer_size = 30 ;	// Buffer size ( in images )
 	unsigned int id_module = 0 ;
 	int module_flag = 0 ;
 	unsigned int id_cam = 0 ;
@@ -296,11 +296,8 @@ int main( int argc, char** argv, char** envv ) {
 	ArvBuffer *buffer ;
 	char filename[100] = "test.sblv" ;
 	struct tm tm ;
-	int fichier ;
+	FILE* fichier ;
 	sblv_header header ;
-	int nb_frames ;
-
-	nb_frames = duration*60*fps;
 
 	sprintf( header.cam_serial, arv_camera_get_device_serial_number(camera, NULL) ) ;
 	header.rows = rows ;
@@ -323,7 +320,7 @@ int main( int argc, char** argv, char** envv ) {
 		while(1) {
 			header.timestamp = time(NULL) ;
 			tm = *localtime(&(header.timestamp));
-			sprintf(filename, "%s/M%02dC%02d_%d%02d%02d_%02d%02d%02d.sblv", 
+			sprintf(filename,"%s/M%02dC%02d_%d%02d%02d_%02d%02d%02d.sblv", 
 					output,
 					header.module, header.cam,
 					tm.tm_year + 1900, 
@@ -332,19 +329,18 @@ int main( int argc, char** argv, char** envv ) {
 					tm.tm_hour, 
 					tm.tm_min, 
 					tm.tm_sec);
-			fichier=open( filename, O_WRONLY | O_CREAT | O_TRUNC, "wb" );
-			filename[0]++ ;
-			for (i=0; i<nb_frames; i++) {
+
+			fichier=fopen( filename, "wb" );
+			while (header.timestamp + duration*60 > time(NULL)) {
 				buffer = arv_stream_pop_buffer (stream);
 				if ( ARV_IS_BUFFER( buffer)){
-					write( fichier,
-							arv_buffer_get_data(buffer,NULL)
-							, payload ) ;
-					arv_stream_push_buffer (stream, buffer);
+					fwrite( arv_buffer_get_data(buffer,NULL)
+							, payload, 1, fichier ) ; 
+					arv_stream_push_buffer (stream, buffer); 
 				}
 			}
-			write( fichier, &header, sizeof(sblv_header) );
-			close(fichier) ;
+			fwrite( &header, sizeof(sblv_header), 1, fichier );
+			fclose(fichier) ;
 		}
 	}
 	arv_camera_stop_acquisition( camera, &error ) ;
