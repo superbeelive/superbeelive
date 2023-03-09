@@ -9,21 +9,33 @@
 #include "sbl.h"
 #include "sblv_file.h"
 
+#include "data.h"
+
+void stream_cb (void*, ArvStreamCallbackType, ArvBuffer*) ;
+void new_buffer_cb(ArvStream*, data_t *) ;
+gboolean periodic_task_cb (void *) ;
+void control_lost_cb (ArvGvDevice *) ;
+void signal_handler (int) ;
+
+int done = 0 ;
 
 int main( int argc, char** argv, char** envv ) {
 
-	int rows = 1200;	// image height
-	int cols = 1920;	// image width
-	double fps = 30 ;	// frames per sec
+	int rows = 1200;			// image height
+	int cols = 1920;			// image width
+	double fps = 30 ;			// frames per sec
 	char *output_prefix = NULL; // output prefix
 	char *output = NULL ;      	// output path
 	char *camera_name = NULL ;  // camera name
-	int	buffer_size = 30 ;	// Buffer size ( in images )
-	unsigned int id_module = 0 ;
-	int module_flag = 0 ;
-	unsigned int id_cam = 0 ;
+	int	buffer_size = 30 ;	    // Buffer size ( in images )
+	int duration = 1 ;			// Duration in minutes
+	unsigned int id_module = 0 ; // Module id
+	unsigned int id_cam = 0 ;	 // Cam id
+
+	data_t data ;
+
+	int module_flag = 0 ;		
 	int cam_flag = 0 ;
-	int duration = 1 ;				// Duration in minutes
 
 	int i ;
 	int opt ;
@@ -33,6 +45,8 @@ int main( int argc, char** argv, char** envv ) {
 	gint region_x, region_y, region_width, region_height ;
 	ArvStream *stream ;
 	size_t payload ;
+
+	void (*old_sigint_handler)(int);
 
 	// Parsing des options
 	
@@ -172,7 +186,7 @@ int main( int argc, char** argv, char** envv ) {
 		return EXIT_FAILURE;
 	} else {
 		printf("\tTest file deleted successfully.\n");
-		printf("\tPerformance: %.3f fps\n", test_images / elapsed );
+		printf("\tPerformance: %.3f fps\n\n", test_images / elapsed );
 	}
 
 	free(test_filename) ;
@@ -195,7 +209,7 @@ int main( int argc, char** argv, char** envv ) {
 
 	// Application des parametres à la camera
 	
-	printf("\nCamera: %s\n", camera_name );
+	printf("Camera: %s\n", camera_name );
 	printf("Vendor: %s\n", arv_camera_get_vendor_name(camera, NULL) ) ;
 	printf("Model: %s\n",  arv_camera_get_model_name(camera, NULL) ) ;
 	printf("Serial: %s\n",  arv_camera_get_device_serial_number(camera, NULL) ) ;
@@ -249,7 +263,7 @@ int main( int argc, char** argv, char** envv ) {
 		fprintf(stderr,"%s\n", error->message );
 		exit(EXIT_FAILURE);
 	}
-	printf("Framerate: %.3lf\n", fps ) ; 
+	printf("Framerate: %.3lf\n\n", fps ) ; 
 	
 	arv_camera_set_acquisition_mode( camera, ARV_ACQUISITION_MODE_CONTINUOUS, &error ) ;
 	if ( error != NULL ) {
@@ -260,7 +274,7 @@ int main( int argc, char** argv, char** envv ) {
 
 	// creation du stream
 	
-	stream = arv_camera_create_stream( camera, NULL, NULL, &error );
+	stream = arv_camera_create_stream( camera, stream_cb, NULL, &error );
 	if ( error != NULL ) {
 		fprintf(stderr,"ERROR: Could not create stream\n") ;
 		fprintf(stderr,"%s\n", error->message );
@@ -272,14 +286,16 @@ int main( int argc, char** argv, char** envv ) {
 		exit(EXIT_FAILURE);
 	}
 	
+	// Buffers allocation
+
 	payload = arv_camera_get_payload( camera, &error ) ;
 	if ( error != NULL ) {
 		fprintf(stderr,"ERROR: Could not retrieve payload size\n") ;
 		fprintf(stderr,"%s\n", error->message );
 		exit(EXIT_FAILURE);
 	}
-	printf( "\nPayload size: %ld Bytes \n", payload ) ;
-	printf( "Buffer: %d images\n", buffer_size ) ;
+	printf( "Payload size: %ld Bytes \n", payload ) ;
+	printf( "Buffer: %d images\n\n", buffer_size ) ;
 	
 	for( i=0; i<buffer_size; i++) {
 		ArvBuffer *buff ;
@@ -308,14 +324,35 @@ int main( int argc, char** argv, char** envv ) {
 	header.module = id_module ;
 	header.cam = id_cam ;
 
-	printf("\nID Hive: %d\n", header.hive ) ;
+	printf("ID Hive: %d\n", header.hive ) ;
 	printf("ID Module: %d\n", header.module ) ;
 	printf("ID Cam: %d\n", header.cam ) ;
-	printf("File duration: %d minutes\n", duration ) ;
-	printf("\nRecording...\n") ;
+	printf("File duration: %d minutes\n\n", duration ) ;
+	
+	printf("Recording...\n") ;
 
 	arv_camera_start_acquisition(camera, &error);
 
+    g_signal_connect (stream, "new-buffer", G_CALLBACK (new_buffer_cb), &data);
+	arv_stream_set_emit_signals (stream, TRUE);
+
+	g_signal_connect (arv_camera_get_device (camera), "control-lost",
+					      G_CALLBACK (control_lost_cb), NULL);
+
+	// data.start_time = g_get_monotonic_time();
+	
+	g_timeout_add (1000, periodic_task_cb, &data);
+	
+	data.main_loop = g_main_loop_new (NULL, FALSE);
+	old_sigint_handler = signal (SIGINT, signal_handler) ;
+	g_main_loop_run (data.main_loop);
+	
+	signal (SIGINT, old_sigint_handler);
+	g_main_loop_unref (data.main_loop);
+
+
+
+/*
 	if ( error == NULL ) {
 		while(1) {
 			header.timestamp = time(NULL) ;
@@ -343,7 +380,12 @@ int main( int argc, char** argv, char** envv ) {
 			fclose(fichier) ;
 		}
 	}
+
+	*/
+
 	arv_camera_stop_acquisition( camera, &error ) ;
+	arv_stream_set_emit_signals (stream, FALSE);
+
 	
 	// Liberation memoire
 
