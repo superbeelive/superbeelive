@@ -7,8 +7,6 @@
 #include <arv.h>
 
 #include "sbl.h"
-#include "sblv_file.h"
-
 #include "data.h"
 
 void stream_cb (void*, ArvStreamCallbackType, ArvBuffer*) ;
@@ -33,9 +31,6 @@ int main( int argc, char** argv, char** envv ) {
 	unsigned int id_cam = 0 ;	 // Cam id
 
 	data_t data ;
-	data.buffer_count = 0;
-	data.error_count = 0;
-	data.transferred = 0;
 
 	int module_flag = 0 ;		
 	int cam_flag = 0 ;
@@ -312,24 +307,32 @@ int main( int argc, char** argv, char** envv ) {
 
 	// Record loop
 
-	ArvBuffer *buffer ;
-	char filename[100] = "test.sblv" ;
-	struct tm tm ;
-	FILE* fichier ;
-	sblv_header header ;
 
-	sprintf( header.cam_serial, arv_camera_get_device_serial_number(camera, NULL) ) ;
-	header.rows = rows ;
-	header.cols = cols ;
-	header.fps = fps ;
-	header.encoding = MONO8 ;
-	header.hive = ID_HIVE ;
-	header.module = id_module ;
-	header.cam = id_cam ;
+	data.payload = payload ;
+	data.duration = duration ;
 
-	printf("ID Hive: %d\n", header.hive ) ;
-	printf("ID Module: %d\n", header.module ) ;
-	printf("ID Cam: %d\n", header.cam ) ;
+	data.buffer_count = 0;
+	data.error_count = 0;
+	data.transferred = 0;
+	data.start_time = g_get_monotonic_time();
+	data.handle = -1 ;
+	if (pthread_mutex_init(&data.handle_mutex, NULL) != 0) {
+        printf("\n mutex init has failed\n");
+        return 1;
+    }
+	sprintf( data.header.cam_serial, arv_camera_get_device_serial_number(camera, NULL) ) ;
+	data.header.rows = rows ;
+	data.header.cols = cols ;
+	data.header.fps = fps ;
+	data.header.encoding = MONO8 ;
+	data.header.hive = ID_HIVE ;
+	data.header.module = id_module ;
+	data.header.cam = id_cam ;
+	data.output = output ;
+
+	printf("ID Hive: %d\n", data.header.hive ) ;
+	printf("ID Module: %d\n", data.header.module ) ;
+	printf("ID Cam: %d\n", data.header.cam ) ;
 	printf("File duration: %d minutes\n\n", duration ) ;
 	
 	printf("Recording...\n") ;
@@ -342,9 +345,10 @@ int main( int argc, char** argv, char** envv ) {
 	g_signal_connect (arv_camera_get_device (camera), "control-lost",
 					      G_CALLBACK (control_lost_cb), NULL);
 
-	// data.start_time = g_get_monotonic_time();
+	data.start_time = g_get_monotonic_time();
 	
 	g_timeout_add (1000, periodic_task_cb, &data);
+	data.header.timestamp = time(NULL) ;
 	
 	data.main_loop = g_main_loop_new (NULL, FALSE);
 	old_sigint_handler = signal (SIGINT, signal_handler) ;
@@ -352,37 +356,6 @@ int main( int argc, char** argv, char** envv ) {
 	
 	signal (SIGINT, old_sigint_handler);
 	g_main_loop_unref (data.main_loop);
-
-/*
-	if ( error == NULL ) {
-		while(1) {
-			header.timestamp = time(NULL) ;
-			tm = *localtime(&(header.timestamp));
-			sprintf(filename,"%s/M%02dC%02d_%d%02d%02d_%02d%02d%02d.sblv", 
-					output,
-					header.module, header.cam,
-					tm.tm_year + 1900, 
-					tm.tm_mon + 1, 
-					tm.tm_mday, 
-					tm.tm_hour, 
-					tm.tm_min, 
-					tm.tm_sec);
-
-			fichier=fopen( filename, "wb" );
-			while (header.timestamp + duration*60 > time(NULL)) {
-				buffer = arv_stream_pop_buffer (stream);
-				if ( ARV_IS_BUFFER( buffer)){
-					fwrite( arv_buffer_get_data(buffer,NULL)
-							, payload, 1, fichier ) ; 
-					arv_stream_push_buffer (stream, buffer); 
-				}
-			}
-			fwrite( &header, sizeof(sblv_header), 1, fichier );
-			fclose(fichier) ;
-		}
-	}
-
-	*/
 
 	arv_camera_stop_acquisition( camera, &error ) ;
 	arv_stream_set_emit_signals (stream, FALSE);
