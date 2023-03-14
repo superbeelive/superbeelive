@@ -33,6 +33,9 @@ int main( int argc, char** argv, char** envv ) {
 	unsigned int id_cam = 0 ;	 // Cam id
 
 	data_t data ;
+	data.buffer_count = 0;
+	data.error_count = 0;
+	data.transferred = 0;
 
 	int module_flag = 0 ;		
 	int cam_flag = 0 ;
@@ -349,8 +352,6 @@ int main( int argc, char** argv, char** envv ) {
 	
 	signal (SIGINT, old_sigint_handler);
 	g_main_loop_unref (data.main_loop);
-
-
 
 /*
 	if ( error == NULL ) {

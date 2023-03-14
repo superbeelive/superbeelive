@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <arv.h>
 
-#define OPTION_REALTIME 		FALSE
-#define OPTION_HIGH_PRIORITY	FALSE
+#define OPTION_REALTIME	0
+#define OPTION_HIGH_PRIORITY 0
 
 void
 stream_cb (void *user_data, ArvStreamCallbackType type, ArvBuffer *buffer)

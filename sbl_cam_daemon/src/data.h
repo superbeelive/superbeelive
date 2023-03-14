@@ -4,9 +4,9 @@
 
 typedef struct {
 	GMainLoop *main_loop;
-	// int buffer_count;
-	// int error_count;
-	// size_t transferred;
+	int buffer_count;
+	int error_count;
+	size_t transferred;
     // gint64 start_time;
 } data_t ;
 
