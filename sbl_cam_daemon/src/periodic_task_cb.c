@@ -39,7 +39,7 @@ periodic_task_cb( void* abstract_data )
 				tm.tm_min, 
 				tm.tm_sec);
 
-		new_file=open( filename, O_CREAT | O_WRONLY | O_APPEND ,"wb" );
+		new_file=creat( filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 
 		old_file = data->handle ;
 		
