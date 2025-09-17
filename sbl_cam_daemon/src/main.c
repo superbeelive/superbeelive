@@ -272,7 +272,7 @@ int main( int argc, char** argv, char** envv ) {
 
 	// creation du stream
 	
-	stream = arv_camera_create_stream( camera, stream_cb, NULL, &error );
+	stream = arv_camera_create_stream( camera, stream_cb, NULL, NULL, &error );
 	if ( error != NULL ) {
 		fprintf(stderr,"ERROR: Could not create stream\n") ;
 		fprintf(stderr,"%s\n", error->message );

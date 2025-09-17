@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -O2 -Wall `pkg-config --cflags aravis-0.8` -I../libsbl/include
-LDFLAGS = -Wall `pkg-config --libs aravis-0.8`
+CFLAGS = -O2 -Wall `pkg-config --cflags aravis-0.10` -I../libsbl/include
+LDFLAGS = -Wall `pkg-config --libs aravis-0.10`
 DEBUG = -g
 
 all: sbl_cam_daemon

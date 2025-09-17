@@ -32,8 +32,8 @@ endforeach()
 ### Set include directories 
         
 include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include"
-	                 "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        	         "${CMAKE_CURRENT_BINARY_DIR}"
+	             "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                     "${CMAKE_CURRENT_BINARY_DIR}"
                      "${CMAKE_INSTALL_PREFIX}/include")
 
 ### Main Target and linking
