@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Download_video</title>
+</head>
+<body>
+    <h1>Export de vid&eacuteo :</h1>
+    <label>Module : <input type="number" id="module" min="1" max="4" value="1"></label><br>
+    <label>Camera : <input type="number" id="camera" min="1" max="2" value="1"></label><br>
+    <br>
+    <label>Start :  <input type="date" id="startDay" value="2025-09-24"> <input type="time" id="startTime" value="13:00"></label><br>
+    <label>Stop  :    <input type="date" id="stopDay" value="2025-09-24"> <input type="time" id="stopTime" value="14:00"></label><br>
+    <br>   	 
+    <button id="startBtn">Lancer</button>
+    <button id="stopBtn" disabled>Stop</button>
+
+    <h2>Sortie :</h2>
+    <pre id="output"></pre>
+
+    <script src="/download_video/client.js"></script>
+</body>
+</html>
