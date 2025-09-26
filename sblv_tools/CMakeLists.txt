@@ -39,10 +39,11 @@ include_directories( "/beegfs/home/seb/superbeelive/libsbl/include"
 ### Main Target and linking
 
 add_executable( "sblv_print" "src/sblv_print.c" )
+add_executable( "sblv_extract_one_frame" "src/sblv_extract_one_frame.c" )
 
 ### Install targets
 
-install( TARGETS "sblv_print"
+install( TARGETS "sblv_print" "sblv_extract_one_frame"
         RUNTIME DESTINATION ${INSTALL_BIN_PATH}  COMPONENT main
         LIBRARY DESTINATION ${INSTALL_LIB_PATH}  COMPONENT main
         ARCHIVE DESTINATION ${INSTALL_AR_PATH}   COMPONENT main )
