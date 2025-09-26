@@ -31,7 +31,7 @@ endforeach()
 
 ### Set include directories 
         
-include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include"
+include_directories( "/beegfs/home/seb/superbeelive/libsbl/include"
 	             "${CMAKE_CURRENT_SOURCE_DIR}/src"
                      "${CMAKE_CURRENT_BINARY_DIR}"
                      "${CMAKE_INSTALL_PREFIX}/include")
