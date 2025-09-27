@@ -18,7 +18,7 @@ document.getElementById('startBtn').onclick = () => {
 
     eventSource = new EventSource(`/download_video/run?module=${module}&camera=${camera}&start_date=${startDate}&start_time=${startTime}&stop_date=${stopDate}&stop_time=${stopTime}`);
     eventSource.onmessage = (e) => {
-        output.textContent += e.data + '\n';
+        output.innerHTML += e.data + '</br>';
         output.scrollTop = output.scrollHeight;
     };
     eventSource.onerror = () => {

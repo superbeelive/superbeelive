@@ -34,11 +34,13 @@ app.get('/run', (req, res) => {
     processes[clientId] = prog;
 
     prog.stdout.on('data', data => {
-        res.write(`data: ${data.toString()}\n\n`);
+	let lines = data.toString().split('\n');
+        lines.forEach(line => res.write(`data: ${line}\n\n`));
     });
 
     prog.stderr.on('data', data => {
-        res.write(`data: ERREUR: ${data.toString()}\n\n`);
+	let lines = data.toString().split('\n');
+        lines.forEach(line => res.write(`data: [ERROR] ${line}\n\n`));
     });
 
     prog.on('close', code => {
